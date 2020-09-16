@@ -37,6 +37,7 @@ class Inventory extends Simulation {
 
   val httpConf = http.baseUrl(baseURL)
     .header("Accept", "application/json")
+    .enableHttp2 // to support HTTP/2. If remote doesn't support it, then Gatling fall back to HTTP/1.
 //    .proxy(Proxy("localhost", 8888))
 
 
