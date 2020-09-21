@@ -6,20 +6,10 @@ import io.gatling.http.Predef._
 import scala.concurrent.duration.DurationInt
 import scala.util.Random
 
-class Inventory extends Simulation {
+class PetStore extends Simulation {
 
   /** * Variables ** */
   // runtime variables
-  def baseURL: String = getProperty("BASE_URL", "http://localhost:8080/projections/")
-
-  def rmsSkuIds: String = getProperty("RMS_SKU_IDS", "89134036").split(",").map("rmsSkuId=" + _).mkString("&")
-
-  def locationIds: String = getProperty("LOCATION_IDS", "320").split(",").map("locationId=" + _).mkString("&")
-
-  def query: String = s"?${rmsSkuIds}&${locationIds}"
-
-  def path: String = s"inventory${query}"
-
   def userCount: Int = getProperty("USERS", "5").toInt
 
   def rampDuration: Int = getProperty("RAMP_DURATION", "10").toInt
@@ -35,25 +25,34 @@ class Inventory extends Simulation {
       .getOrElse(defaultValue)
   }
 
-  val httpConf = http.baseUrl(baseURL)
+  val httpConf = http.baseUrl("https://petstore.swagger.io/v2/")
     .header("Accept", "application/json")
-    .enableHttp2 // to support HTTP/2. If remote doesn't support it, then Gatling fall back to HTTP/1.
-    .proxy(Proxy("localhost", 8888).httpsPort(8888))
+      .enableHttp2
+      .proxy(Proxy("localhost", 8888).httpsPort(8888))
 
+  def randomString(length: Int) = {
+    rnd.alphanumeric.filter(_.isLetter).take(length).mkString
+  }
 
-  def getInventory() = {
-    exec(
-      http("Get inventory")
-        .get(path)
+  /** * Custom Feeder ** */
+  val customFeeder = Iterator.continually(Map(
+    "name" -> ("MyPet-" + randomString(5))
+  ))
+
+  def createPet() = {
+    feed(customFeeder).
+      exec(http("Create a new Pet")
+        .post("pet")
+        .body(ElFileBody("bodies/NewPetTemplate.json")).asJson //template file goes in gating/resources/bodies
         .check(status.is(200))
         .check(bodyString.saveAs("responseBody")))
-//      .exec { session => println(session("responseBody").as[String]); session }
+      .exec { session => println(session("responseBody").as[String]); session }
   }
 
   /** * Scenario Design ** */
-  val scn = scenario("Projections API")
+  val scn = scenario("Pet Store API")
     .forever() {
-      exec(getInventory())
+      exec(createPet())
         .pause(1)
     }
 
@@ -71,8 +70,6 @@ class Inventory extends Simulation {
     println(s"Running test with ${userCount} users")
     println(s"Ramping users over ${rampDuration} seconds")
     println(s"Total Test duration: ${testDuration} seconds")
-    println(s"Base URL: ${baseURL}")
-    println(s"Path: ${path}")
   }
 
   /** * After ** */
