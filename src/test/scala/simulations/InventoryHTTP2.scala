@@ -4,29 +4,25 @@ import io.gatling.core.Predef._
 import io.gatling.http.Predef._
 
 import scala.concurrent.duration.DurationInt
-import scala.util.Random
 
-class Inventory extends Simulation {
+/**
+ * Running a simulation:
+ *
+ * mvn gatling:test -Dgatling.simulationClass=simulations.InventoryHTTP2  -DUSERS=1 -DRAMP_DURATION=1 -DDURATION=20
+ */
+class InventoryHTTP2 extends Simulation {
 
   /** * Variables ** */
   // runtime variables
-  def baseURL: String = getProperty("BASE_URL", "http://localhost:8080/projections/")
+  def baseURL: String = getProperty("BASE_URL", "https://localhost:8443")
 
-  def rmsSkuIds: String = getProperty("RMS_SKU_IDS", "89134036").split(",").map("rmsSkuId=" + _).mkString("&")
-
-  def locationIds: String = getProperty("LOCATION_IDS", "320").split(",").map("locationId=" + _).mkString("&")
-
-  def query: String = s"?${rmsSkuIds}&${locationIds}"
-
-  def path: String = s"inventory${query}"
+  def path: String = s""
 
   def userCount: Int = getProperty("USERS", "5").toInt
 
   def rampDuration: Int = getProperty("RAMP_DURATION", "10").toInt
 
   def testDuration: Int = getProperty("DURATION", "30").toInt
-
-  val rnd = new Random()
 
   /** * Helper Methods ** */
   private def getProperty(propertyName: String, defaultValue: String) = {
@@ -37,16 +33,17 @@ class Inventory extends Simulation {
 
   val httpConf = http.baseUrl(baseURL)
     .header("Accept", "application/json")
-    .enableHttp2 // to support HTTP/2. If remote doesn't support it, then Gatling fall back to HTTP/1.
-    .http2PriorKnowledge(Map("localhost:8080" -> true))
+    .enableHttp2
+    .http2PriorKnowledge(Map("localhost:8443" -> true))
 
   def getInventory() = {
     exec(
-      http("Get inventory")
-        .get(path)
+      http("Get HTTP2")
+        .get("")
         .check(status.is(200))
-        .check(bodyString.saveAs("responseBody")))
-//      .exec { session => println(session("responseBody").as[String]); session }
+        .check(bodyString.saveAs("responseBody"))
+    )
+      .exec { session => println(session("responseBody").as[String]); session }
   }
 
   /** * Scenario Design ** */
